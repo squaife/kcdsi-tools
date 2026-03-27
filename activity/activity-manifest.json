@@ -1,0 +1,26 @@
+{
+  "name": "DSI Activity Calculator",
+  "short_name": "DS Activity",
+  "description": "Calculate your personal activity multiplier and estimated daily calorie burn.",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f0f8f8",
+  "theme_color": "#1E5C5C",
+  "lang": "en-US",
+  "categories": ["health", "fitness"],
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
