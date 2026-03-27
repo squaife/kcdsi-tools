@@ -2,7 +2,7 @@
   "name": "DS Nutrition Calculator",
   "short_name": "DS Nutrition",
   "description": "Body composition–driven macro prescription for Down syndrome and general adult clients.",
-  "start_url": "./nutrition-calculator.html",
+  "start_url": "./",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#f4f1ec",
