@@ -1,1 +1,1444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DSI Schedule Admin</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600;700&display=swap');
+
+  :root {
+    --bg:     #0f0f0e;
+    --bg2:    #181817;
+    --bg3:    #212120;
+    --bg4:    #2a2a28;
+    --border: rgba(255,255,255,0.07);
+    --border2:rgba(255,255,255,0.16);
+    --text:   #f0ede6;
+    --text2:  #8a8880;
+    --text3:  #555450;
+
+    /* Season colors */
+    --spring:       #4BA5A5;
+    --spring-dim:   rgba(75,165,165,0.15);
+    --spring-text:  #4BA5A5;
+
+    --summer:       #C8A830;
+    --summer-dim:   rgba(200,168,48,0.15);
+    --summer-text:  #C8A830;
+
+    --fall:         #3A7BD5;
+    --fall-dim:     rgba(58,123,213,0.15);
+    --fall-text:    #3A7BD5;
+
+    --off:          #111111;
+    --off-text:     #444444;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', -apple-system, sans-serif;
+    min-height: 100vh;
+  }
+
+  /* ── Password overlay ── */
+  #pw-overlay {
+    position: fixed; inset: 0; background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000; flex-direction: column; gap: 20px;
+  }
+  .pw-box {
+    background: var(--bg2); border: 0.5px solid var(--border2);
+    border-radius: 16px; padding: 36px 32px; width: 320px;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .pw-logo { font-size: 13px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--spring); }
+  .pw-title { font-size: 22px; font-weight: 700; }
+  .pw-sub { font-size: 13px; color: var(--text2); line-height: 1.5; }
+  .pw-input {
+    background: var(--bg3); border: 0.5px solid var(--border2); border-radius: 10px;
+    color: var(--text); font-size: 16px; padding: 12px 14px; outline: none; width: 100%;
+    font-family: 'DM Mono', monospace; letter-spacing: .1em;
+  }
+  .pw-input:focus { border-color: var(--spring); }
+  .pw-btn {
+    background: var(--spring); border: none; border-radius: 10px;
+    color: #fff; font-size: 15px; font-weight: 700; padding: 13px;
+    cursor: pointer; font-family: inherit;
+  }
+  .pw-btn:active { opacity: .85; }
+  .pw-err { font-size: 13px; color: #D85A50; display: none; }
+
+  /* ── Layout ── */
+  #app { display: none; }
+  .header {
+    background: var(--bg2); border-bottom: 0.5px solid var(--border);
+    padding: 14px 24px; display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .header-left { display: flex; align-items: center; gap: 14px; }
+  .logo-mark { font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--spring); }
+  .header-title { font-size: 16px; font-weight: 700; }
+  .export-btn {
+    background: var(--spring); border: none; border-radius: 8px;
+    color: #fff; font-size: 13px; font-weight: 700; padding: 9px 18px;
+    cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: 6px;
+  }
+  .export-btn:active { opacity: .85; }
+
+  .main { display: grid; grid-template-columns: 260px 1fr; min-height: calc(100vh - 53px); }
+  @media(max-width:700px){ .main { grid-template-columns: 1fr; } .sidebar { border-right: none; border-bottom: 0.5px solid var(--border); } }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    background: var(--bg2); border-right: 0.5px solid var(--border);
+    padding: 20px 16px; display: flex; flex-direction: column; gap: 6px;
+    overflow-y: auto;
+  }
+  .sidebar-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--text3); margin: 10px 4px 4px; }
+
+  /* Year tabs */
+  .year-tabs { display: flex; gap: 4px; margin-bottom: 4px; }
+  .year-tab {
+    flex: 1; padding: 8px; border-radius: 8px; border: 0.5px solid var(--border2);
+    background: var(--bg3); color: var(--text2); font-size: 13px; font-weight: 600;
+    cursor: pointer; text-align: center; font-family: 'DM Mono', monospace;
+    transition: all .15s;
+  }
+  .year-tab.active { background: var(--spring-dim); border-color: var(--spring); color: var(--spring); }
+
+  /* Season summary cards */
+  .season-card {
+    padding: 10px 12px; border-radius: 10px; border: 0.5px solid var(--border);
+    background: var(--bg3); cursor: pointer; transition: border-color .15s;
+  }
+  .season-card:hover { border-color: var(--border2); }
+  .season-card.active-spring { border-color: var(--spring); background: var(--spring-dim); }
+  .season-card.active-summer { border-color: var(--summer); background: var(--summer-dim); }
+  .season-card.active-fall   { border-color: var(--fall);   background: var(--fall-dim);   }
+  .sc-name { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
+  .sc-count { font-size: 11px; color: var(--text2); }
+  .sc-spring { color: var(--spring-text); }
+  .sc-summer { color: var(--summer-text); }
+  .sc-fall   { color: var(--fall-text);   }
+
+  /* Legend */
+  .legend { display: flex; flex-direction: column; gap: 6px; padding: 4px; }
+  .legend-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text2); }
+  .legend-dot { width: 13px; height: 13px; border-radius: 4px; flex-shrink: 0; border: 1.5px solid; }
+
+  /* ── Calendar area ── */
+  .cal-area { padding: 24px; overflow-y: auto; }
+
+  .cal-header {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;
+  }
+  .cal-nav { display: flex; align-items: center; gap: 10px; }
+  .cal-nav-btn {
+    background: var(--bg3); border: 0.5px solid var(--border2); border-radius: 8px;
+    color: var(--text2); font-size: 18px; padding: 5px 14px; cursor: pointer;
+    line-height: 1; font-family: inherit;
+  }
+  .cal-nav-btn:active { opacity: .7; }
+  .cal-month-lbl { font-size: 20px; font-weight: 700; min-width: 200px; }
+
+  .season-banner {
+    padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 600;
+    border: 0.5px solid; display: inline-flex; align-items: center; gap: 6px;
+    margin-bottom: 16px;
+  }
+  .season-banner.spring { background: var(--spring-dim); border-color: var(--spring); color: var(--spring-text); }
+  .season-banner.summer { background: var(--summer-dim); border-color: var(--summer); color: var(--summer-text); }
+  .season-banner.fall   { background: var(--fall-dim);   border-color: var(--fall);   color: var(--fall-text);   }
+  .season-banner.none   { background: var(--bg3); border-color: var(--border2); color: var(--text2); }
+
+  /* Stats */
+  .cal-stats { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .stat-chip {
+    padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;
+    border: 0.5px solid;
+  }
+  .stat-chip.on     { background: var(--spring-dim); border-color: var(--spring); color: var(--spring); }
+  .stat-chip.off    { background: var(--off); border-color: var(--border2); color: var(--text2); }
+  /* .stat-chip.hol removed - holidays are now no-service */
+  .stat-chip.pd     { background: rgba(200,120,48,0.15); border-color: #C87830; color: #C87830; }
+
+  /* Calendar grid */
+  .cal-grid {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    gap: 4px; max-width: 560px;
+  }
+  .cal-hdr {
+    text-align: center; font-size: 10px; font-weight: 700; color: var(--text3);
+    text-transform: uppercase; letter-spacing: .06em; padding: 4px 0 8px;
+  }
+  .cal-cell {
+    aspect-ratio: 1; border-radius: 8px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; font-size: 14px; font-weight: 600;
+    cursor: pointer; border: 1.5px solid transparent; position: relative;
+    transition: transform .1s, opacity .1s; user-select: none;
+  }
+  .cal-cell:hover { transform: scale(1.05); }
+  .cal-cell:active { transform: scale(.95); opacity: .8; }
+  .cal-cell.empty { cursor: default; pointer-events: none; }
+  .cal-cell.sunday { color: var(--text3); cursor: default; pointer-events: none; }
+  .cal-cell.sat-off { color: var(--text3); cursor: default; pointer-events: none; }
+
+  .cal-cell.on-spring { background: rgba(75,165,165,0.30); border-color: var(--spring); color: #fff; }
+  .cal-cell.on-summer { background: rgba(200,168,48,0.30); border-color: var(--summer); color: #fff; }
+  .cal-cell.on-fall   { background: rgba(58,123,213,0.30); border-color: var(--fall);   color: #fff; }
+  .cal-cell.on-none   { background: rgba(120,120,120,0.25); border-color: #888; color: #fff; }
+
+  .cal-cell.off     { background: #111; border-color: #333; color: #444; }
+  .cal-cell.holiday { background: #111; border-color: #333; color: #444; } /* same as off */
+  .cal-cell.pd-day  { background: #111; border-color: #333; color: #444; } /* same as off */
+
+  .cal-cell .cell-label {
+    font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+    opacity: .7; margin-top: 1px; line-height: 1;
+  }
+
+  /* Tooltip on hover */
+  .cal-cell[data-tip]:hover::after {
+    content: attr(data-tip);
+    position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+    background: var(--bg4); border: 0.5px solid var(--border2); border-radius: 6px;
+    font-size: 10px; color: var(--text2); padding: 4px 8px; white-space: nowrap;
+    pointer-events: none; z-index: 20; font-weight: 400;
+  }
+
+  /* Sat toggle */
+  .sat-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; background: var(--bg3); border-radius: 10px;
+    border: 0.5px solid var(--border2); margin-bottom: 16px; cursor: pointer;
+    max-width: 560px;
+  }
+  .sat-label { font-size: 13px; font-weight: 500; }
+  .t-sw {
+    width: 42px; height: 24px; border-radius: 12px; position: relative; flex-shrink: 0;
+    background: var(--bg4); border: 0.5px solid var(--border2); transition: background .2s;
+  }
+  .t-sw.on { background: var(--spring); }
+  .t-sw::after {
+    content: ''; position: absolute; width: 18px; height: 18px; background: white;
+    border-radius: 50%; top: 3px; left: 3px; transition: transform .2s;
+  }
+  .t-sw.on::after { transform: translateX(18px); }
+
+  /* ── Tabs ── */
+  .tab-nav {
+    display: flex; gap: 0; border-bottom: 0.5px solid var(--border);
+    background: var(--bg2); padding: 0 24px; position: sticky; top: 53px; z-index: 90;
+  }
+  .tab-btn {
+    padding: 12px 18px; font-size: 13px; font-weight: 600; cursor: pointer;
+    border: none; background: none; color: var(--text2); border-bottom: 2px solid transparent;
+    font-family: inherit; transition: color .15s; white-space: nowrap;
+  }
+  .tab-btn.active { color: var(--spring); border-bottom-color: var(--spring); }
+  .tab-btn:hover:not(.active) { color: var(--text); }
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+
+  /* ── Data management (SPs, Grants, Engagement) ── */
+  .data-area { padding: 24px; max-width: 760px; }
+  .data-section { margin-bottom: 32px; }
+  .data-section-title {
+    font-size: 16px; font-weight: 700; margin-bottom: 4px;
+  }
+  .data-section-sub { font-size: 13px; color: var(--text2); margin-bottom: 16px; line-height: 1.5; }
+  .data-add-form {
+    background: var(--bg2); border: 0.5px solid var(--border2);
+    border-radius: 12px; padding: 16px; margin-bottom: 16px;
+  }
+  .form-row { display: grid; gap: 10px; margin-bottom: 10px; }
+  .form-row.cols-2 { grid-template-columns: 1fr 1fr; }
+  .form-row.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .form-row.cols-1 { grid-template-columns: 1fr; }
+  .form-input {
+    background: var(--bg3); border: 0.5px solid var(--border2); border-radius: 8px;
+    color: var(--text); font-size: 14px; padding: 9px 12px; outline: none; width: 100%;
+    font-family: inherit;
+  }
+  .form-input:focus { border-color: var(--spring); }
+  .form-input::placeholder { color: var(--text3); }
+  .form-actions { display: flex; gap: 8px; }
+  .btn-add {
+    background: var(--spring); border: none; border-radius: 8px; color: #fff;
+    font-size: 13px; font-weight: 700; padding: 9px 18px; cursor: pointer; font-family: inherit;
+  }
+  .btn-add:active { opacity: .85; }
+  .btn-upload {
+    background: var(--bg3); border: 0.5px solid var(--border2); border-radius: 8px;
+    color: var(--text2); font-size: 13px; font-weight: 600; padding: 9px 18px;
+    cursor: pointer; font-family: inherit;
+  }
+  .btn-upload:hover { border-color: var(--spring); color: var(--spring); }
+  .data-list { display: flex; flex-direction: column; gap: 4px; }
+  .data-row {
+    display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+    background: var(--bg2); border: 0.5px solid var(--border); border-radius: 8px;
+  }
+  .data-row:hover { border-color: var(--border2); }
+  .data-row-main { flex: 1; min-width: 0; }
+  .data-row-title { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .data-row-sub { font-size: 12px; color: var(--text2); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .btn-del {
+    background: none; border: none; color: var(--text3); font-size: 16px;
+    cursor: pointer; padding: 2px 6px; border-radius: 4px; flex-shrink: 0; line-height: 1;
+  }
+  .btn-del:hover { color: #D85A50; background: rgba(216,90,80,0.1); }
+  .empty-list { font-size: 13px; color: var(--text2); padding: 12px 0; }
+  .upload-hint { font-size: 11px; color: var(--text3); margin-top: 6px; }
+  .sp-search-wrap { position: relative; margin-bottom: 10px; }
+  .sp-search-dropdown {
+    display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+    background: var(--bg3); border: 0.5px solid var(--border2); border-radius: 8px;
+    z-index: 200; max-height: 200px; overflow-y: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+  .sp-search-dropdown.open { display: block; }
+  .sp-search-opt {
+    padding: 10px 12px; font-size: 13px; cursor: pointer; border-bottom: 0.5px solid var(--border);
+  }
+  .sp-search-opt:last-child { border-bottom: none; }
+  .sp-search-opt:hover { background: var(--bg4); }
+  .sp-search-opt .opt-sub { font-size: 11px; color: var(--text2); margin-top: 1px; }
+  .manual-toggle { font-size: 12px; color: var(--spring); cursor: pointer; margin-bottom: 10px; display: inline-block; }
+  .manual-toggle:hover { opacity: .8; }
+  .manual-fields { display: none; }
+  .section-divider { height: 0.5px; background: var(--border); margin: 28px 0; }
+
+  /* SP grant authorization pills */
+  .sp-grants-row { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; padding-top: 8px; border-top: 0.5px solid var(--border); }
+  .grant-pill {
+    font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 20px;
+    border: 0.5px solid var(--border2); cursor: pointer; user-select: none;
+    background: var(--bg3); color: var(--text3); transition: all .15s;
+  }
+  .grant-pill.authorized { background: var(--spring-dim); border-color: var(--spring); color: var(--spring-text); }
+  .grant-pill:hover { border-color: var(--spring); color: var(--text); }
+  .sp-grants-label { font-size: 11px; color: var(--text3); margin-top: 6px; display: block; }
+
+  /* Export preview */
+  .export-preview {
+    margin-top: 24px; background: var(--bg2); border: 0.5px solid var(--border);
+    border-radius: 12px; padding: 16px; max-width: 560px;
+  }
+  .ep-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--text3); margin-bottom: 12px; }
+  .ep-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 0.5px solid var(--border); }
+  .ep-row:last-child { border-bottom: none; }
+  .ep-name { font-size: 14px; font-weight: 600; }
+  .ep-count { font-size: 12px; color: var(--text2); font-family: 'DM Mono', monospace; }
+</style>
+</head>
+<body>
+
+<!-- Password overlay -->
+<div id="pw-overlay">
+  <div class="pw-box">
+    <div class="pw-logo">Down Syndrome Innovations</div>
+    <div class="pw-title">Schedule Admin</div>
+    <div class="pw-sub">Manage season schedules, holidays, and PD days for all users.</div>
+    <input type="password" class="pw-input" id="pw-input" placeholder="Enter password" onkeydown="if(event.key==='Enter')checkPW()">
+    <div class="pw-err" id="pw-err">Incorrect password. Please try again.</div>
+    <button class="pw-btn" onclick="checkPW()">Sign In</button>
+  </div>
+</div>
+
+<!-- Main app -->
+<div id="app">
+  <div class="header">
+    <div class="header-left">
+      <div class="logo-mark">DSI</div>
+      <div class="header-title">Schedule Admin</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="export-btn" style="background:var(--bg3);border:0.5px solid var(--border2);color:var(--text2)" onclick="document.getElementById('import-file').click()">&#8679; Import</button>
+      <input type="file" id="import-file" accept=".json" style="display:none" onchange="importJSON(this)">
+      <button class="export-btn" onclick="exportJSON()">&#8681; Export dsi-admin-data.json</button>
+    </div>
+  </div>
+
+  <!-- Tab nav -->
+  <div class="tab-nav">
+    <button class="tab-btn active" onclick="setTab('calendar')">📅 Calendar</button>
+    <button class="tab-btn" onclick="setTab('sps')">👤 Service Providers</button>
+    <button class="tab-btn" onclick="setTab('grants')">🏷 Grants</button>
+    <button class="tab-btn" onclick="setTab('activities')">📋 Engagement Activities</button>
+    <button class="tab-btn" onclick="setTab('advocates')">🧑 Self-Advocates</button>
+  </div>
+
+  <!-- ── TAB: Calendar ── -->
+  <div class="tab-pane active" id="tab-calendar">
+    <div class="main">
+      <div class="sidebar">
+        <div class="sidebar-label">Year</div>
+        <div class="year-tabs" id="year-tabs"></div>
+        <div class="sidebar-label">Seasons</div>
+        <div id="season-cards"></div>
+        <div class="sidebar-label" style="margin-top:16px">Legend</div>
+        <div class="legend">
+          <div class="legend-row"><div class="legend-dot" style="background:var(--spring-dim);border-color:var(--spring)"></div>Spring service day</div>
+          <div class="legend-row"><div class="legend-dot" style="background:var(--summer-dim);border-color:var(--summer)"></div>Summer service day</div>
+          <div class="legend-row"><div class="legend-dot" style="background:var(--fall-dim);border-color:var(--fall)"></div>Fall service day</div>
+          <div class="legend-row"><div class="legend-dot" style="background:rgba(120,120,120,0.2);border-color:#888"></div>Non-seasonal service day</div>
+          <div class="legend-row"><div class="legend-dot" style="background:#111;border-color:#333"></div>No service</div>
+        </div>
+        <div style="margin-top:auto;padding-top:20px">
+          <div class="export-preview">
+            <div class="ep-title">Configured Seasons</div>
+            <div id="ep-list"><div style="font-size:13px;color:var(--text2)">No dates configured yet.</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="cal-area">
+        <div class="cal-header">
+          <div class="cal-nav">
+            <button class="cal-nav-btn" onclick="changeMonth(-1)">&#8249;</button>
+            <div class="cal-month-lbl" id="cal-month-lbl"></div>
+            <button class="cal-nav-btn" onclick="changeMonth(1)">&#8250;</button>
+          </div>
+        </div>
+        <div id="season-banner" class="season-banner none">Outside Season</div>
+        <div class="cal-stats">
+          <div class="stat-chip on" id="stat-on">0 seasonal</div>
+          <div class="stat-chip" id="stat-non" style="background:rgba(100,100,100,0.2);border:0.5px solid #888;color:#aaa">0 non-seasonal</div>
+          <div class="stat-chip off" id="stat-off">0 no service</div>
+        </div>
+        <div class="sat-row" onclick="toggleSat()">
+          <span class="sat-label">Include Saturdays</span>
+          <div class="t-sw" id="sat-sw"></div>
+        </div>
+        <div class="cal-grid" id="cal-grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TAB: Service Providers ── -->
+  <div class="tab-pane" id="tab-sps">
+    <div class="data-area">
+      <div class="data-section">
+        <div class="data-section-title">Service Providers</div>
+        <div class="data-section-sub">These will be available in the attendance app for roster assignment. Email is used as a unique identifier — keep it consistent.</div>
+        <div class="data-add-form">
+          <div class="sp-search-wrap">
+            <input type="text" class="form-input" id="sp-search" placeholder="Search service providers..." autocomplete="off" autocorrect="off" oninput="spSearchInput(this.value)" onfocus="spSearchInput(this.value)">
+            <div class="sp-search-dropdown" id="sp-search-dropdown"></div>
+          </div>
+          <span class="manual-toggle" onclick="toggleManualSP()">&#43; Enter manually instead</span>
+          <div class="manual-fields" id="sp-manual-fields">
+            <div class="form-row cols-3" style="margin-bottom:10px">
+              <input type="text" class="form-input" id="sp-fn" placeholder="First name" autocapitalize="words">
+              <input type="text" class="form-input" id="sp-ln" placeholder="Last name" autocapitalize="words">
+              <input type="email" class="form-input" id="sp-em" placeholder="Email address" autocapitalize="none" autocorrect="off">
+            </div>
+            <div class="form-actions" style="margin-bottom:8px">
+              <button class="btn-add" onclick="addSPManual()">Add Service Provider</button>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="btn-upload" onclick="document.getElementById('sp-csv-input').click()">Upload CSV</button>
+            <input type="file" id="sp-csv-input" accept=".csv" style="display:none" onchange="uploadSPCSV(this)">
+          </div>
+          <div class="upload-hint">CSV format: First Name, Last Name, Email (header row optional)</div>
+        </div>
+        <div class="data-list" id="sp-list"><div class="empty-list">No service providers added yet.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TAB: Grants ── -->
+  <div class="tab-pane" id="tab-grants">
+    <div class="data-area">
+      <div class="data-section">
+        <div class="data-section-title">Grants</div>
+        <div class="data-section-sub">Add grants manually or upload a CSV. Each grant needs a name, activity code, and engagement activity for CSV export rows.</div>
+        <div class="data-add-form">
+          <div class="form-row cols-2">
+            <input type="text" class="form-input" id="gr-name" placeholder="Grant name">
+            <input type="text" class="form-input" id="gr-code" placeholder="Activity code">
+          </div>
+          <div class="form-row cols-1">
+            <input type="text" class="form-input" id="gr-eng" placeholder="Engagement activity">
+          </div>
+          <div class="form-actions">
+            <button class="btn-add" onclick="addGrant()">Add Grant</button>
+            <button class="btn-upload" onclick="document.getElementById('grant-csv-input').click()">Upload CSV</button>
+            <input type="file" id="grant-csv-input" accept=".csv" style="display:none" onchange="uploadGrantCSV(this)">
+          </div>
+          <div class="upload-hint">CSV format: Grant Name, Activity Code, Engagement Activity (header row optional)</div>
+        </div>
+        <div class="data-list" id="grant-list"><div class="empty-list">No grants added yet.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TAB: Engagement Activities ── -->
+  <div class="tab-pane" id="tab-activities">
+    <div class="data-area">
+      <div class="data-section">
+        <div class="data-section-title">Engagement Activities</div>
+        <div class="data-section-sub">These populate the activity dropdowns in the attendance app. Add manually or upload your existing CSV.</div>
+        <div class="data-add-form">
+          <div class="form-row cols-2">
+            <input type="text" class="form-input" id="act-name" placeholder="Activity name">
+            <input type="text" class="form-input" id="act-code" placeholder="Activity code">
+          </div>
+          <div class="form-actions">
+            <button class="btn-add" onclick="addActivity()">Add Activity</button>
+            <button class="btn-upload" onclick="document.getElementById('act-csv-input').click()">Upload CSV</button>
+            <input type="file" id="act-csv-input" accept=".csv" style="display:none" onchange="uploadActivityCSV(this)">
+          </div>
+          <div class="upload-hint">CSV format: Activity Name, Activity Code (header row optional)</div>
+        </div>
+        <div class="data-list" id="act-list"><div class="empty-list">No activities added yet.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TAB: Self-Advocates ── -->
+  <div class="tab-pane" id="tab-advocates">
+    <div class="data-area">
+      <div class="data-section">
+        <div class="data-section-title">Self-Advocates</div>
+        <div class="data-section-sub">Salesforce is the source of truth. Re-upload this list when new self-advocates are added in Salesforce. You can also add someone manually in a pinch — they'll be available in the attendance app on next import.</div>
+        <div class="data-add-form">
+          <div class="form-row cols-2">
+            <input type="text" class="form-input" id="adv-name" placeholder="Full name" autocapitalize="words">
+            <input type="text" class="form-input" id="adv-sfid" placeholder="Salesforce Contact ID (optional)">
+          </div>
+          <div class="form-actions">
+            <button class="btn-add" onclick="addAdvocate()">Add Self-Advocate</button>
+            <button class="btn-upload" onclick="document.getElementById('adv-csv-input').click()">Upload CSV</button>
+            <input type="file" id="adv-csv-input" accept=".csv" style="display:none" onchange="uploadAdvocateCSV(this)">
+          </div>
+          <div class="upload-hint">CSV format: Full Name, Salesforce Contact ID (header row optional)</div>
+        </div>
+        <div id="adv-search-wrap" style="margin-bottom:10px;display:none">
+          <input type="text" class="form-input" id="adv-search" placeholder="Search by name..." oninput="filterAdvocates(this.value)">
+        </div>
+        <div class="data-list" id="adv-list"><div class="empty-list">No self-advocates added yet.</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Password ──
+const ADMIN_PW = 'dsi2026'; // Change this to your preferred password
+
+function checkPW() {
+  const val = document.getElementById('pw-input').value;
+  if (val === ADMIN_PW) {
+    document.getElementById('pw-overlay').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    init();
+  } else {
+    document.getElementById('pw-err').style.display = 'block';
+    document.getElementById('pw-input').value = '';
+    document.getElementById('pw-input').focus();
+  }
+}
+
+// ── State ──
+let viewYear = new Date().getFullYear();
+let viewMonth = new Date().getMonth();
+let hasSat = JSON.parse(localStorage.getItem('admin_hasSat') || 'false');
+// overrides[ds] = 'non' | 'off'
+const overrides = JSON.parse(localStorage.getItem('admin_overrides') || '{}');
+
+// ── Season boundaries (month 0-indexed) ──
+function getSeason(month, day) {
+  // Spring: Jan 20 – May 31
+  if ((month===0&&day>=20)||(month>=1&&month<=4)) return 'spring';
+  // Summer: Jun 1 – Jul 31
+  if (month===5||month===6) return 'summer';
+  // Fall: Aug 1 – Dec 31
+  if (month>=7&&month<=11) return 'fall';
+  // Jan 1–19: upcoming spring season
+  return 'spring';
+}
+
+function getSeasonForBanner(month) {
+  if (month === 0) return 'spring';
+  return getSeason(month, 15);
+}
+
+// ── Holidays ──
+function getHolidays(year) {
+  const h = {};
+  const mark = (m, d, lbl) => {
+    const ds = `${year}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    // Only mark if it's a weekday
+    const dow = new Date(year, m, d).getDay();
+    if (dow === 0) { // Sunday -> observe Monday
+      const md = `${year}-${String(m+1).padStart(2,'0')}-${String(d+1).padStart(2,'0')}`;
+      h[md] = lbl + ' (observed)';
+    } else if (dow === 6) { // Saturday -> observe Friday
+      const fd = `${year}-${String(m+1).padStart(2,'0')}-${String(d-1).padStart(2,'0')}`;
+      h[fd] = lbl + ' (observed)';
+    } else {
+      h[ds] = lbl;
+    }
+  };
+  mark(0,1,"New Year's Day");
+  mark(0,2,"New Year's Break");
+  mark(0,nthWeekday(year,0,1,3),"MLK Day");
+  mark(1,nthWeekday(year,1,1,3),"Presidents Day");
+  mark(4,lastWeekday(year,4,1),"Memorial Day");
+  mark(5,19,"Juneteenth");
+  mark(6,4,"4th of July");
+  mark(8,nthWeekday(year,8,1,1),"Labor Day");
+  const tg = nthWeekday(year,10,4,4);
+  mark(10,tg-1,"Day before Thanksgiving");
+  mark(10,tg,"Thanksgiving");
+  mark(10,tg+1,"Day after Thanksgiving");
+  for (let d = 24; d <= 31; d++) mark(11,d,d===24?"Christmas Eve":d===25?"Christmas Day":"Holiday Break");
+  return h;
+}
+
+// ── PD Days (first Friday of each month) ──
+function getPDDays(year) {
+  const pd = {};
+  for (let m = 0; m < 12; m++) {
+    const d = nthWeekday(year, m, 5, 1); // first Friday
+    const ds = `${year}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    pd[ds] = 'PD Day';
+  }
+  return pd;
+}
+
+function nthWeekday(year, month, weekday, n) {
+  let count=0, d=1;
+  while(true) { if(new Date(year,month,d).getDay()===weekday){if(++count===n)return d;} d++; }
+}
+function lastWeekday(year, month, weekday) {
+  let d = new Date(year,month+1,0);
+  while(d.getDay()!==weekday) d.setDate(d.getDate()-1);
+  return d.getDate();
+}
+
+// ── Default state for a date ──
+function defaultState(ds, dow, year, month, day) {
+  const hols = getHolidays(year);
+  const pds  = getPDDays(year);
+  if (hols[ds]) return { state:'holiday', tip: hols[ds] };
+  if (pds[ds])  return { state:'pd-day',  tip: 'PD Day' };
+  if (dow === 0) return { state:'sunday',  tip: null };
+  if (dow === 6) return { state: hasSat ? 'on' : 'sat-off', tip: null };
+  return { state:'on', tip: null };
+}
+
+function getState(ds, dow, year, month, day) {
+  const def = defaultState(ds, dow, year, month, day);
+  if (overrides[ds]) {
+    const o = overrides[ds];
+    if (o === 'non') return { state:'on-none', tip:'Non-seasonal service day' };
+    if (o === 'off') return { state:'off', tip:'No service' };
+    return { state: 'on-'+getSeason(month,day), tip: def.tip };
+  }
+  // Holidays and PD days default to off
+  if (def.state === 'holiday' || def.state === 'pd-day') {
+    return { state:'off', tip: def.tip };
+  }
+  // Default weekdays get their season color
+  if (def.state === 'on') {
+    return { state: 'on-'+getSeason(month,day), tip: def.tip };
+  }
+  return def;
+}
+
+function toggleDay(ds, dow, year, month, day) {
+  const def = defaultState(ds, dow, year, month, day);
+  if (def.state === 'sunday' || def.state === 'sat-off') return;
+
+  const order = ['seasonal','non','off'];
+  let cur;
+  if (overrides[ds]) {
+    cur = overrides[ds];
+  } else {
+    cur = (def.state === 'holiday' || def.state === 'pd-day') ? 'off' : 'seasonal';
+  }
+
+  const next = order[(order.indexOf(cur) + 1) % order.length];
+  if (next === 'seasonal') delete overrides[ds];
+  else overrides[ds] = next;
+
+  localStorage.setItem('admin_overrides', JSON.stringify(overrides));
+  renderCal();
+  updateSidebar();
+}
+
+
+function toggleSat() {
+  hasSat = !hasSat;
+  localStorage.setItem('admin_hasSat', JSON.stringify(hasSat));
+  const sw = document.getElementById('sat-sw');
+  if (sw) sw.classList.toggle('on', hasSat);
+  renderCal();
+}
+
+// ── Render calendar ──
+function renderCal() {
+  const grid = document.getElementById('cal-grid');
+  const lbl  = document.getElementById('cal-month-lbl');
+  lbl.textContent = new Date(viewYear, viewMonth, 1)
+    .toLocaleDateString('en-US', {month:'long', year:'numeric'});
+
+  const firstDay    = new Date(viewYear, viewMonth, 1).getDay();
+  const daysInMonth = new Date(viewYear, viewMonth+1, 0).getDate();
+  const hols = getHolidays(viewYear);
+  const pds  = getPDDays(viewYear);
+
+  const season = getSeasonForBanner(viewMonth);
+  const banner = document.getElementById('season-banner');
+  const bannerLabels = { spring:'🌱 Spring Season', summer:'☀️ Summer Season', fall:'🍂 Fall Season', none:'Outside Season' };
+  banner.className = 'season-banner ' + season;
+  banner.textContent = bannerLabels[season] || 'Outside Season';
+
+  let html = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+    .map(d=>`<div class="cal-hdr">${d}</div>`).join('');
+
+  for (let i=0; i<firstDay; i++) html += '<div class="cal-cell empty"></div>';
+
+  let onCnt=0, nonCnt=0, offCnt=0;
+
+  for (let d=1; d<=daysInMonth; d++) {
+    const dow = new Date(viewYear, viewMonth, d).getDay();
+    const ds  = `${viewYear}-${String(viewMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const {state, tip} = getState(ds, dow, viewYear, viewMonth, d);
+    const season = getSeason(viewMonth, d);
+
+    let cls='', sublabel='';
+    if      (state==='sunday')  cls='sunday';
+    else if (state==='sat-off') cls='sat-off';
+    else if (state==='off')     { cls='off'; offCnt++; }
+    else if (state==='on-none') { cls='on-none'; sublabel='REG'; nonCnt++; }
+    else if (state.startsWith('on-')) { cls=state; onCnt++; }
+
+    const tappable = !['sunday','sat-off'].includes(state);
+    const onclick  = tappable ? `onclick="toggleDay('${ds}',${dow},${viewYear},${viewMonth},${d})"` : '';
+    // Tooltip: show what next tap will do
+    const nextAction = state==='on'?'Tap: mark PD day':state==='pd-day'?'Tap: mark off':state==='off'?'Tap: restore':state==='holiday'?'Tap: include as session day':'';
+    const tipAttr  = (tip||nextAction) ? `data-tip="${tip?tip+(nextAction?' — ':'')+nextAction:nextAction}"` : '';
+
+    html += `<div class="cal-cell ${cls}" ${onclick} ${tipAttr}>
+      ${d}${sublabel?`<span class="cell-label">${sublabel}</span>`:''}
+    </div>`;
+  }
+
+  grid.innerHTML = html;
+
+  document.getElementById('stat-on').textContent  = `${onCnt} seasonal`;
+  const _nonEl=document.getElementById('stat-non'); if(_nonEl) _nonEl.textContent=`${nonCnt} non-seasonal`;
+  document.getElementById('stat-off').textContent = `${offCnt} no service`;
+}
+
+// ── Get all ON dates across years ──
+function getAllOnDates() {
+  // Returns seasonal dates per season-year AND non-seasonal service dates
+  const result = {};
+  const startYear = new Date().getFullYear();
+  for (let y = startYear; y <= startYear + 2; y++) {
+    const seasonal = {spring:[],summer:[],fall:[]};
+    const nonSeasonal = [];
+    for (let m = 0; m < 12; m++) {
+      const daysInMonth = new Date(y, m+1, 0).getDate();
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dow = new Date(y, m, d).getDay();
+        const ds = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const {state} = getState(ds, dow, y, m, d);
+        if (state === 'on-none') {
+          nonSeasonal.push(ds);
+        } else if (state.startsWith('on-') && state !== 'on-none') {
+          const s = getSeason(m, d);
+          if (seasonal[s]) seasonal[s].push(ds);
+        }
+      }
+    }
+    // Add seasonal seasons
+    Object.entries(seasonal).forEach(([s, arr]) => {
+      if (arr.length) {
+        const name = `${s.charAt(0).toUpperCase()+s.slice(1)} ${y}`;
+        if (!result[name]) result[name] = { dates: [], type: 'seasonal' };
+        result[name].dates.push(...arr);
+      }
+    });
+    // Add non-seasonal as its own entry
+    if (nonSeasonal.length) {
+      result[`Non-Seasonal ${y}`] = { dates: nonSeasonal, type: 'non-seasonal' };
+    }
+  }
+  return result;
+}
+
+
+function updateSidebar() {
+  const seasons = getAllOnDates();
+  const cards = document.getElementById('season-cards');
+  const epList = document.getElementById('ep-list');
+
+  if (!Object.keys(seasons).length) {
+    cards.innerHTML = '<div style="font-size:12px;color:var(--text2);padding:4px">No dates selected yet.</div>';
+    epList.innerHTML = '<div style="font-size:13px;color:var(--text2)">No dates configured yet.</div>';
+    return;
+  }
+
+  const colorMap = { Spring:'spring', Summer:'summer', Fall:'fall' };
+  cards.innerHTML = Object.entries(seasons).map(([name, {dates}]) => {
+    const type = Object.keys(colorMap).find(k => name.startsWith(k)) || 'none';
+    const cls = colorMap[type] || '';
+    return `<div class="season-card" style="margin-bottom:6px">
+      <div class="sc-name sc-${cls}">${name}</div>
+      <div class="sc-count">${dates.length} session dates</div>
+    </div>`;
+  }).join('');
+
+  epList.innerHTML = Object.entries(seasons).map(([name, {dates}]) => {
+    const type = Object.keys(colorMap).find(k => name.startsWith(k)) || 'none';
+    const cls = colorMap[type] || '';
+    return `<div class="ep-row">
+      <div class="ep-name sc-${cls}">${name}</div>
+      <div class="ep-count">${dates.length} dates</div>
+    </div>`;
+  }).join('');
+}
+
+// ── Year tabs ──
+function renderYearTabs() {
+  const cur = new Date().getFullYear();
+  const tabs = document.getElementById('year-tabs');
+  tabs.innerHTML = [cur, cur+1, cur+2].map(y =>
+    `<div class="year-tab${viewYear===y?' active':''}" onclick="setYear(${y})">${y}</div>`
+  ).join('');
+}
+
+function setYear(y) {
+  viewYear = y;
+  viewMonth = 0;
+  renderYearTabs();
+  renderCal();
+}
+
+function changeMonth(dir) {
+  viewMonth += dir;
+  if (viewMonth > 11) { viewMonth=0; viewYear++; }
+  if (viewMonth < 0)  { viewMonth=11; viewYear--; }
+  renderYearTabs();
+  renderCal();
+}
+
+// ── Export ──
+function exportJSON() {
+  const seasons = getAllOnDates();
+  const output = {
+    seasons: Object.entries(seasons).map(([name, {dates, type}]) => ({
+      name, type: type || 'seasonal',
+      dates: [...new Set(dates)].sort()
+    })),
+    calendarOverrides: {...overrides},
+    hasSat: hasSat,
+    serviceProviders: SERVICE_PROVIDERS,
+    grants: GRANTS,
+    engagementActivities: ACTIVITIES,
+    selfAdvocates: ADVOCATES,
+    exportedAt: new Date().toISOString()
+  };
+  const json = JSON.stringify(output, null, 2);
+  const blob = new Blob([json], {type:'application/json'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = 'dsi-admin-data.json';
+  a.click(); URL.revokeObjectURL(url);
+}
+
+// ── Init ──
+function init() {
+  // Restore sat toggle visual state
+  const sw = document.getElementById('sat-sw');
+  if (sw) sw.classList.toggle('on', hasSat);
+  renderYearTabs();
+  renderCal();
+  updateSidebar();
+  renderSPList();
+  renderGrantList();
+  renderActivityList();
+  renderAdvocateList();
+}
+
+// ── Tab switching ──
+function setTab(tab) {
+  const tabs = ['calendar','sps','grants','activities','advocates'];
+  tabs.forEach(t => {
+    document.getElementById('tab-'+t).classList.toggle('active', t===tab);
+  });
+  document.querySelectorAll('.tab-btn').forEach((btn, i) => {
+    btn.classList.toggle('active', i === tabs.indexOf(tab));
+  });
+}
+
+// ══════════════════════════════════════════════════════
+// SERVICE PROVIDERS
+// ══════════════════════════════════════════════════════
+let SERVICE_PROVIDERS = (JSON.parse(localStorage.getItem('admin_sps') || '[]')).map(sp => ({...sp, grantIds: sp.grantIds || []}));
+
+function spId(email) {
+  // Stable ID based on email
+  return 'sp_' + email.toLowerCase().replace(/[^a-z0-9]/g,'_');
+}
+
+function saveSPs() {
+  localStorage.setItem('admin_sps', JSON.stringify(SERVICE_PROVIDERS));
+}
+
+function addSP() {
+  const fn = document.getElementById('sp-fn').value.trim();
+  const ln = document.getElementById('sp-ln').value.trim();
+  const em = document.getElementById('sp-em').value.trim().toLowerCase();
+  if (!fn || !ln) { alert('First and last name are required.'); return; }
+  if (!em || !em.includes('@')) { alert('A valid email is required.'); return; }
+  const id = spId(em);
+  if (SERVICE_PROVIDERS.find(s => s.id === id)) { alert('A service provider with that email already exists.'); return; }
+  SERVICE_PROVIDERS.push({ id, firstName: fn, lastName: ln, email: em, grantIds: [] });
+  SERVICE_PROVIDERS.sort((a,b) => (a.lastName+a.firstName).localeCompare(b.lastName+b.firstName));
+  saveSPs();
+  renderSPList();
+  document.getElementById('sp-fn').value = '';
+  document.getElementById('sp-ln').value = '';
+  document.getElementById('sp-em').value = '';
+  document.getElementById('sp-fn').focus();
+}
+
+function removeSP(id) {
+  if (!confirm('Remove this service provider?')) return;
+  SERVICE_PROVIDERS = SERVICE_PROVIDERS.filter(s => s.id !== id);
+  saveSPs();
+  renderSPList();
+}
+
+function uploadSPCSV(input) {
+  const file = input.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const lines = e.target.result.split('\n').map(l => l.trim()).filter(Boolean);
+    let added = 0, skipped = 0;
+    lines.forEach(line => {
+      const parts = line.split(',').map(p => p.replace(/^"|"$/g,'').trim());
+      if (parts.length < 3) return;
+      const [fn, ln, em] = parts;
+      if (!fn || !ln || !em || !em.includes('@')) return;
+      // Skip header rows
+      if (fn.toLowerCase() === 'first' || fn.toLowerCase() === 'first name') { skipped++; return; }
+      const id = spId(em.toLowerCase());
+      if (SERVICE_PROVIDERS.find(s => s.id === id)) { skipped++; return; }
+      SERVICE_PROVIDERS.push({ id, firstName: fn, lastName: ln, email: em.toLowerCase() });
+      added++;
+    });
+    SERVICE_PROVIDERS.sort((a,b) => (a.lastName+a.firstName).localeCompare(b.lastName+b.firstName));
+    saveSPs();
+    renderSPList();
+    alert(`Imported ${added} service providers${skipped ? ', skipped '+skipped+' duplicates/headers' : ''}.`);
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
+
+function spSearchInput(q) {
+  const dd = document.getElementById('sp-search-dropdown');
+  if (!q || q.length < 1) { dd.classList.remove('open'); return; }
+  const lq = q.toLowerCase();
+  // Search across all uploaded advocates who might be SPs — use ADVOCATES list
+  // plus any already-added SPs not yet in list
+  const matches = ADVOCATES
+    .filter(a => a.name.toLowerCase().includes(lq))
+    .filter(a => !SERVICE_PROVIDERS.find(s => s.name && (s.firstName+' '+s.lastName).toLowerCase() === a.name.toLowerCase()))
+    .slice(0, 15);
+  if (!matches.length) { dd.classList.remove('open'); return; }
+  dd.innerHTML = matches.map(a => {
+    const parts = a.name.trim().split(' ');
+    const fn = parts[0]; const ln = parts.slice(1).join(' ');
+    return `<div class="sp-search-opt" onclick="selectSPFromSearch('${fn.replace(/'/g,"\\'")}','${ln.replace(/'/g,"\\'")}','${(a.sfId||'').replace(/'/g,"\\'")}')">
+      <div>${a.name}</div>
+      ${a.sfId ? '<div class="opt-sub">SF: '+a.sfId+'</div>' : ''}
+    </div>`;
+  }).join('');
+  dd.classList.add('open');
+  // Close on outside click
+  setTimeout(() => {
+    const handler = e => {
+      if (!dd.contains(e.target) && e.target.id !== 'sp-search') {
+        dd.classList.remove('open');
+        document.removeEventListener('click', handler);
+      }
+    };
+    document.addEventListener('click', handler);
+  }, 0);
+}
+
+function selectSPFromSearch(fn, ln, sfId) {
+  // Auto-fill email prompt or add with blank email + open manual to fill email
+  document.getElementById('sp-search').value = fn + (ln ? ' ' + ln : '');
+  document.getElementById('sp-search-dropdown').classList.remove('open');
+  // Show manual fields pre-filled so user can add email
+  document.getElementById('sp-manual-fields').style.display = 'block';
+  document.querySelector('.manual-toggle').style.display = 'none';
+  document.getElementById('sp-fn').value = fn;
+  document.getElementById('sp-ln').value = ln;
+  document.getElementById('sp-em').value = '';
+  document.getElementById('sp-em').focus();
+}
+
+function toggleManualSP() {
+  const fields = document.getElementById('sp-manual-fields');
+  const toggle = document.querySelector('.manual-toggle');
+  const isOpen = fields.style.display === 'block';
+  fields.style.display = isOpen ? 'none' : 'block';
+  toggle.textContent = isOpen ? '+ Enter manually instead' : '− Hide manual entry';
+}
+
+function addSPManual() {
+  const fn = document.getElementById('sp-fn').value.trim();
+  const ln = document.getElementById('sp-ln').value.trim();
+  const em = document.getElementById('sp-em').value.trim().toLowerCase();
+  if (!fn || !ln) { alert('First and last name are required.'); return; }
+  if (!em || !em.includes('@')) { alert('A valid email is required.'); return; }
+  const id = spId(em);
+  if (SERVICE_PROVIDERS.find(s => s.id === id)) { alert('A service provider with that email already exists.'); return; }
+  SERVICE_PROVIDERS.push({ id, firstName: fn, lastName: ln, email: em });
+  SERVICE_PROVIDERS.sort((a,b) => (a.lastName+a.firstName).localeCompare(b.lastName+b.firstName));
+  saveSPs();
+  renderSPList();
+  // Reset form
+  document.getElementById('sp-search').value = '';
+  document.getElementById('sp-fn').value = '';
+  document.getElementById('sp-ln').value = '';
+  document.getElementById('sp-em').value = '';
+  document.getElementById('sp-manual-fields').style.display = 'none';
+  document.querySelector('.manual-toggle').textContent = '+ Enter manually instead';
+  document.querySelector('.manual-toggle').style.display = 'inline-block';
+}
+
+function renderSPList() {
+  const el = document.getElementById('sp-list');
+  if (!SERVICE_PROVIDERS.length) {
+    el.innerHTML = '<div class="empty-list">No service providers added yet.</div>';
+    return;
+  }
+  el.innerHTML = SERVICE_PROVIDERS.map(sp => {
+    const grantIds = sp.grantIds || [];
+    const pills = GRANTS.length
+      ? GRANTS.map(g => {
+          const auth = grantIds.includes(g.id);
+          return `<span class="grant-pill${auth?' authorized':''}" onclick="toggleSPGrant('${sp.id}','${g.id}')" title="${g.name}">${g.name}</span>`;
+        }).join('')
+      : '<span style="font-size:11px;color:var(--text3)">No grants defined yet — add grants in the Grants tab first.</span>';
+    return `
+    <div class="data-row" style="flex-direction:column;align-items:stretch">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="data-row-main">
+          <div class="data-row-title">${sp.firstName} ${sp.lastName}</div>
+          <div class="data-row-sub">${sp.email}</div>
+        </div>
+        <button class="btn-del" onclick="removeSP('${sp.id}')" title="Remove">&#x2715;</button>
+      </div>
+      <div class="sp-grants-row">
+        <span class="sp-grants-label">Authorized grants:</span>
+        ${pills}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleSPGrant(spId, grantId) {
+  const sp = SERVICE_PROVIDERS.find(s => s.id === spId);
+  if (!sp) return;
+  if (!sp.grantIds) sp.grantIds = [];
+  const idx = sp.grantIds.indexOf(grantId);
+  if (idx === -1) { sp.grantIds.push(grantId); }
+  else { sp.grantIds.splice(idx, 1); }
+  saveSPs();
+  renderSPList();
+}
+
+// ══════════════════════════════════════════════════════
+// GRANTS
+// ══════════════════════════════════════════════════════
+let GRANTS = JSON.parse(localStorage.getItem('admin_grants') || '[]');
+
+function grantId(name) {
+  return 'gr_' + name.toLowerCase().replace(/[^a-z0-9]/g,'_').slice(0,40);
+}
+
+function saveGrants() {
+  localStorage.setItem('admin_grants', JSON.stringify(GRANTS));
+}
+
+function addGrant() {
+  const name = document.getElementById('gr-name').value.trim();
+  const code = document.getElementById('gr-code').value.trim();
+  const eng  = document.getElementById('gr-eng').value.trim();
+  if (!name) { alert('Grant name is required.'); return; }
+  if (!code) { alert('Activity code is required.'); return; }
+  if (!eng)  { alert('Engagement activity is required.'); return; }
+  const id = grantId(name);
+  if (GRANTS.find(g => g.id === id)) { alert('A grant with that name already exists.'); return; }
+  GRANTS.push({ id, name, activityCode: code, engagementActivity: eng });
+  GRANTS.sort((a,b) => a.name.localeCompare(b.name));
+  saveGrants();
+  renderGrantList();
+  document.getElementById('gr-name').value = '';
+  document.getElementById('gr-code').value = '';
+  document.getElementById('gr-eng').value = '';
+  document.getElementById('gr-name').focus();
+}
+
+function removeGrant(id) {
+  if (!confirm('Remove this grant?')) return;
+  GRANTS = GRANTS.filter(g => g.id !== id);
+  saveGrants();
+  renderGrantList();
+}
+
+function uploadGrantCSV(input) {
+  const file = input.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const lines = e.target.result.split('\n').map(l => l.trim()).filter(Boolean);
+    let added = 0, skipped = 0;
+    lines.forEach(line => {
+      const parts = line.split(',').map(p => p.replace(/^"|"$/g,'').trim());
+      if (parts.length < 3) return;
+      const [name, code, eng] = parts;
+      if (!name || !code || !eng) return;
+      // Skip header row
+      if (name.toLowerCase().includes('name') || name.toLowerCase().includes('grant')) { skipped++; return; }
+      const id = grantId(name);
+      if (GRANTS.find(g => g.id === id)) { skipped++; return; }
+      GRANTS.push({ id, name, activityCode: code, engagementActivity: eng });
+      added++;
+    });
+    GRANTS.sort((a,b) => a.name.localeCompare(b.name));
+    saveGrants();
+    renderGrantList();
+    alert(`Imported ${added} grants${skipped ? ', skipped '+skipped+' duplicates/headers' : ''}.`);
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
+
+function renderGrantList() {
+  const el = document.getElementById('grant-list');
+  if (!GRANTS.length) {
+    el.innerHTML = '<div class="empty-list">No grants added yet.</div>';
+    return;
+  }
+  el.innerHTML = GRANTS.map(g => `
+    <div class="data-row">
+      <div class="data-row-main">
+        <div class="data-row-title">${g.name}</div>
+        <div class="data-row-sub">${g.activityCode} &nbsp;·&nbsp; ${g.engagementActivity}</div>
+      </div>
+      <button class="btn-del" onclick="removeGrant('${g.id}')" title="Remove">&#x2715;</button>
+    </div>`).join('');
+}
+
+// ══════════════════════════════════════════════════════
+// ENGAGEMENT ACTIVITIES
+// ══════════════════════════════════════════════════════
+let ACTIVITIES = JSON.parse(localStorage.getItem('admin_activities') || '[]');
+
+function actId(name) {
+  return 'act_' + name.toLowerCase().replace(/[^a-z0-9]/g,'_').slice(0,40);
+}
+
+function saveActivities() {
+  localStorage.setItem('admin_activities', JSON.stringify(ACTIVITIES));
+}
+
+function addActivity() {
+  const name = document.getElementById('act-name').value.trim();
+  const code = document.getElementById('act-code').value.trim();
+  if (!name) { alert('Activity name is required.'); return; }
+  if (!code) { alert('Activity code is required.'); return; }
+  const id = actId(name);
+  if (ACTIVITIES.find(a => a.id === id)) { alert('An activity with that name already exists.'); return; }
+  ACTIVITIES.push({ id, name, activityCode: code });
+  ACTIVITIES.sort((a,b) => a.name.localeCompare(b.name));
+  saveActivities();
+  renderActivityList();
+  document.getElementById('act-name').value = '';
+  document.getElementById('act-code').value = '';
+  document.getElementById('act-name').focus();
+}
+
+function removeActivity(id) {
+  if (!confirm('Remove this activity?')) return;
+  ACTIVITIES = ACTIVITIES.filter(a => a.id !== id);
+  saveActivities();
+  renderActivityList();
+}
+
+function uploadActivityCSV(input) {
+  const file = input.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const text = e.target.result.replace(/^\uFEFF/, '');
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    let added = 0, skipped = 0;
+    // Find header row — look for 'activity' and 'code'
+    let dataStart = 0;
+    for (let i = 0; i < Math.min(lines.length, 15); i++) {
+      const low = lines[i].toLowerCase();
+      if (low.includes('activity') && low.includes('code')) {
+        dataStart = i + 1; break;
+      }
+    }
+    for (let i = dataStart; i < lines.length; i++) {
+      const parts = lines[i].split(',').map(p => p.replace(/^"|"$/g,'').trim());
+      // Remove leading empty column
+      if (parts[0] === '') parts.shift();
+      // Salesforce format: Name, (empty), Code, SF ID
+      // Simple format: Name, Code
+      let name, code;
+      if (parts.length >= 3 && parts[1] === '') {
+        name = parts[0]; code = parts[2];
+      } else if (parts.length >= 2) {
+        name = parts[0]; code = parts[1];
+      }
+      if (!name || !code) { skipped++; continue; }
+      const id = actId(name);
+      if (ACTIVITIES.find(a => a.id === id)) { skipped++; continue; }
+      ACTIVITIES.push({ id, name, activityCode: code });
+      added++;
+    }
+    ACTIVITIES.sort((a,b) => a.name.localeCompare(b.name));
+    saveActivities();
+    renderActivityList();
+    alert(`Imported ${added} activities${skipped ? ', skipped '+skipped+' duplicates/headers' : ''}.`);
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
+
+function renderActivityList() {
+  const el = document.getElementById('act-list');
+  if (!ACTIVITIES.length) {
+    el.innerHTML = '<div class="empty-list">No activities added yet.</div>';
+    return;
+  }
+  el.innerHTML = ACTIVITIES.map(a => `
+    <div class="data-row">
+      <div class="data-row-main">
+        <div class="data-row-title">${a.name}</div>
+        <div class="data-row-sub">${a.activityCode}</div>
+      </div>
+      <button class="btn-del" onclick="removeActivity('${a.id}')" title="Remove">&#x2715;</button>
+    </div>`).join('');
+}
+
+// ══════════════════════════════════════════════════════
+// SELF-ADVOCATES
+// ══════════════════════════════════════════════════════
+let ADVOCATES = JSON.parse(localStorage.getItem('admin_advocates') || '[]');
+
+function saveAdvocates() {
+  localStorage.setItem('admin_advocates', JSON.stringify(ADVOCATES));
+}
+
+function addAdvocate() {
+  const name = document.getElementById('adv-name').value.trim();
+  const sfid = document.getElementById('adv-sfid').value.trim();
+  if (!name) { alert('Full name is required.'); return; }
+  if (ADVOCATES.find(a => a.name.toLowerCase() === name.toLowerCase())) {
+    alert('A self-advocate with that name already exists.'); return;
+  }
+  const id = 'adv_' + name.toLowerCase().replace(/[^a-z0-9]/g,'_');
+  ADVOCATES.push({ id, name, sfId: sfid || null });
+  ADVOCATES.sort((a,b) => a.name.localeCompare(b.name));
+  saveAdvocates();
+  renderAdvocateList();
+  document.getElementById('adv-name').value = '';
+  document.getElementById('adv-sfid').value = '';
+  document.getElementById('adv-name').focus();
+}
+
+function removeAdvocate(id) {
+  if (!confirm('Remove this self-advocate?')) return;
+  ADVOCATES = ADVOCATES.filter(a => a.id !== id);
+  saveAdvocates();
+  renderAdvocateList();
+}
+
+function uploadAdvocateCSV(input) {
+  const file = input.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    // Handle UTF-8 BOM
+    const text = e.target.result.replace(/^\uFEFF/, '');
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    let added = 0, skipped = 0;
+    // Find the header row — look for 'first name' or 'name'
+    let dataStart = 0;
+    for (let i = 0; i < Math.min(lines.length, 15); i++) {
+      const low = lines[i].toLowerCase();
+      if (low.includes('first name') || low.includes('first,') || low.includes(',first,')) {
+        dataStart = i + 1; break;
+      }
+    }
+    for (let i = dataStart; i < lines.length; i++) {
+      const parts = lines[i].split(',').map(p => p.replace(/^"|"$/g,'').trim());
+      // Remove leading empty column (Salesforce export quirk)
+      if (parts[0] === '') parts.shift();
+      // Format: First Name, (empty col), Last Name, Contact ID
+      // Detect by checking if parts[1] looks empty and parts[2] looks like a last name
+      let fn, ln, sfid;
+      if (parts.length >= 4 && parts[1] === '') {
+        // Salesforce format: First, (empty), Last, ID
+        fn = parts[0]; ln = parts[2]; sfid = parts[3] || null;
+      } else if (parts.length >= 2) {
+        // Simple format: Full Name, SF ID  or  First, Last
+        fn = parts[0]; ln = parts[1] || ''; sfid = parts[2] || null;
+      }
+      if (!fn) { skipped++; continue; }
+      const name = ln ? fn + ' ' + ln : fn;
+      if (!name.trim()) { skipped++; continue; }
+      if (ADVOCATES.find(a => a.name.toLowerCase() === name.toLowerCase())) { skipped++; continue; }
+      const id = 'adv_' + name.toLowerCase().replace(/[^a-z0-9]/g,'_');
+      ADVOCATES.push({ id, name: name.trim(), sfId: sfid });
+      added++;
+    }
+    ADVOCATES.sort((a,b) => a.name.localeCompare(b.name));
+    saveAdvocates();
+    renderAdvocateList();
+    alert(`Imported ${added} self-advocates${skipped ? ', skipped '+skipped+' duplicates/headers' : ''}.`);
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
+
+function filterAdvocates(q) {
+  const list = document.getElementById('adv-list');
+  const rows = list.querySelectorAll('.data-row');
+  const lq = q.toLowerCase();
+  rows.forEach(row => {
+    row.style.display = row.querySelector('.data-row-title').textContent.toLowerCase().includes(lq) ? '' : 'none';
+  });
+}
+
+function renderAdvocateList() {
+  const el = document.getElementById('adv-list');
+  const searchWrap = document.getElementById('adv-search-wrap');
+  if (!ADVOCATES.length) {
+    el.innerHTML = '<div class="empty-list">No self-advocates added yet.</div>';
+    if (searchWrap) searchWrap.style.display = 'none';
+    return;
+  }
+  if (searchWrap) searchWrap.style.display = ADVOCATES.length > 10 ? 'block' : 'none';
+  el.innerHTML = ADVOCATES.map(a => `
+    <div class="data-row">
+      <div class="data-row-main">
+        <div class="data-row-title">${a.name}</div>
+        ${a.sfId ? `<div class="data-row-sub">SF: ${a.sfId}</div>` : ''}
+      </div>
+      <button class="btn-del" onclick="removeAdvocate('${a.id}')" title="Remove">&#x2715;</button>
+    </div>`).join('');
+}
+
+// ── Import ──
+function importJSON(input) {
+  const file = input.files[0]; if (!file) return;
+  input.value = '';
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      // Validate it looks like a DSI admin export
+      if (!data.seasons && !data.serviceProviders && !data.grants && !data.selfAdvocates) {
+        alert('This doesn\'t look like a valid DSI admin export file.');
+        return;
+      }
+      const confirmed = confirm(
+        'This will replace all current admin data with the imported file.\n\n' +
+        'Seasons, Service Providers, Grants, Activities, and Self-Advocates will all be overwritten.\n\nContinue?'
+      );
+      if (!confirmed) return;
+
+      // Restore calendar overrides
+      if (data.calendarOverrides) {
+        Object.keys(overrides).forEach(k => delete overrides[k]);
+        Object.assign(overrides, data.calendarOverrides);
+        localStorage.setItem('admin_overrides', JSON.stringify(overrides));
+      }
+
+      // Restore hasSat
+      if (typeof data.hasSat === 'boolean') {
+        hasSat = data.hasSat;
+        localStorage.setItem('admin_hasSat', JSON.stringify(hasSat));
+        const sw = document.getElementById('sat-sw');
+        if (sw) sw.classList.toggle('on', hasSat);
+      }
+
+      // Restore SP/grant/activity/advocate lists
+      if (Array.isArray(data.serviceProviders)) {
+        SERVICE_PROVIDERS = data.serviceProviders.map(sp => ({...sp, grantIds: sp.grantIds || []}));
+        localStorage.setItem('admin_sps', JSON.stringify(SERVICE_PROVIDERS));
+      }
+      if (Array.isArray(data.grants)) {
+        GRANTS = data.grants;
+        localStorage.setItem('admin_grants', JSON.stringify(GRANTS));
+      }
+      if (Array.isArray(data.engagementActivities)) {
+        ACTIVITIES = data.engagementActivities;
+        localStorage.setItem('admin_activities', JSON.stringify(ACTIVITIES));
+      }
+      if (Array.isArray(data.selfAdvocates)) {
+        ADVOCATES = data.selfAdvocates;
+        localStorage.setItem('admin_advocates', JSON.stringify(ADVOCATES));
+      }
+
+      // Re-render everything
+      renderSPList();
+      renderGrantList();
+      renderActivityList();
+      renderAdvocateList();
+      renderCal();
+      updateSidebar();
+      alert('Import successful!');
+    } catch(err) {
+      alert('Could not read file. Make sure it\'s a valid JSON export.');
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ── Updated Export (includes SPs, grants, activities) ──
+function exportJSON() {
+  const seasons = getAllOnDates();
+  const output = {
+    seasons: Object.entries(seasons).map(([name, {dates, type}]) => ({
+      name, type: type || 'seasonal',
+      dates: [...new Set(dates)].sort()
+    })),
+    calendarOverrides: {...overrides},
+    hasSat: hasSat,
+    serviceProviders: SERVICE_PROVIDERS,
+    grants: GRANTS,
+    engagementActivities: ACTIVITIES,
+    selfAdvocates: ADVOCATES,
+    exportedAt: new Date().toISOString()
+  };
+  const json = JSON.stringify(output, null, 2);
+  const blob = new Blob([json], {type:'application/json'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = 'dsi-admin-data.json';
+  a.click(); URL.revokeObjectURL(url);
+}
+</script></script>
+</body>
+</html>
 
