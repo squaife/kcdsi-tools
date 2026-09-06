@@ -360,6 +360,7 @@
       <button class="export-btn" style="background:var(--bg3);border:0.5px solid var(--border2);color:var(--text2)" onclick="document.getElementById('import-file').click()">&#8679; Import</button>
       <input type="file" id="import-file" accept=".json" style="display:none" onchange="importJSON(this)">
       <button class="export-btn" onclick="exportJSON()">&#8681; Export dsi-admin-data.json</button>
+      <button class="export-btn" onclick="publishToWorker()" style="background:var(--spring,#4BA5A5);color:#fff;border-color:var(--spring,#4BA5A5);margin-left:8px">&#8679; Publish Live</button>
     </div>
   </div>
 
@@ -833,9 +834,12 @@ function changeMonth(dir) {
 }
 
 // ── Export ──
-function exportJSON() {
+const WORKER_URL = 'https://dsi-sync.scott-f5e.workers.dev';
+const ADMIN_TOKEN_KEY = 'dsi_admin_token';
+
+function buildExportData() {
   const seasons = getAllOnDates();
-  const output = {
+  return {
     seasons: Object.entries(seasons).map(([name, {dates, type}]) => ({
       name, type: type || 'seasonal',
       dates: [...new Set(dates)].sort()
@@ -848,6 +852,44 @@ function exportJSON() {
     selfAdvocates: ADVOCATES,
     exportedAt: new Date().toISOString()
   };
+}
+
+async function publishToWorker() {
+  let token = localStorage.getItem(ADMIN_TOKEN_KEY) || '';
+  if (!token) {
+    token = prompt('Enter your admin publish token:');
+    if (!token) return;
+    localStorage.setItem(ADMIN_TOKEN_KEY, token);
+  }
+  const data = buildExportData();
+  const btn = document.querySelector('[onclick="publishToWorker()"]');
+  const orig = btn.innerHTML;
+  btn.innerHTML = 'Publishing…'; btn.disabled = true;
+  try {
+    const res = await fetch(WORKER_URL + '/admin-data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Token': token },
+      body: JSON.stringify(data)
+    });
+    const json = await res.json();
+    if (res.ok) {
+      btn.innerHTML = '✓ Published!';
+      setTimeout(() => { btn.innerHTML = orig; btn.disabled = false; }, 2500);
+    } else if (res.status === 401) {
+      localStorage.removeItem(ADMIN_TOKEN_KEY);
+      alert('Token incorrect — please try again.');
+      btn.innerHTML = orig; btn.disabled = false;
+    } else {
+      throw new Error(json.error || 'Unknown error');
+    }
+  } catch(e) {
+    alert('Publish failed: ' + e.message);
+    btn.innerHTML = orig; btn.disabled = false;
+  }
+}
+
+function exportJSON() {
+  const output = buildExportData();
   const json = JSON.stringify(output, null, 2);
   const blob = new Blob([json], {type:'application/json'});
   const url  = URL.createObjectURL(blob);
@@ -1441,4 +1483,3 @@ function exportJSON() {
 </script></script>
 </body>
 </html>
-
